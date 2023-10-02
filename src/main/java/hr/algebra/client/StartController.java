@@ -1,5 +1,6 @@
 package hr.algebra.client;
 
+import hr.algebra.client.models.Player;
 import hr.algebra.client.utils.SceneUtil;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -15,14 +16,12 @@ public class StartController {
     private TextField playerNameTf;
     @FXML
     private Button startGameBtn;
-    private static String playerName;
+    private static Player player;
 
     public void startGame() throws IOException {
-        playerName = playerNameTf.getText();
+        player = new Player(playerNameTf.getText());
 
-        SceneUtil.setNewSceneToStage("game-view.fxml", "Yahtzee", 600, 500);
+        SceneUtil.setNewSceneToStage("game-view.fxml", "Yahtzee", 924, 527);
     }
-    public static String getPlayerName() {
-        return playerName;
-    }
+    public static Player getPlayer() { return player; }
 }
