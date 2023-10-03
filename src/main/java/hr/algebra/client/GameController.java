@@ -2,8 +2,10 @@ package hr.algebra.client;
 
 import hr.algebra.client.models.*;
 import hr.algebra.client.utils.ScoreUtil;
+import javafx.animation.KeyFrame;
 import javafx.animation.ParallelTransition;
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -21,6 +23,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,10 +72,12 @@ public class GameController {
     private Button btnRoll;
     @FXML
     private Label lblRollsLeft;
+    private Random random;
 
 
     @FXML
     public void initialize() {
+        random = new Random();
         List<Player> players = new ArrayList<>();
         players.add(StartController.getPlayer());
 
@@ -234,7 +239,7 @@ public class GameController {
                 text = Integer.toString(score);
             } else if (scores.containsKey(scoreType)) {
                 int score = scores.get(scoreType);
-                text = score > 0 ? Integer.toString(score) : "-";
+                text = score > 0 ? Integer.toString(score) : "x";
             } else {
                 text = "";
             }
@@ -257,8 +262,7 @@ public class GameController {
 
         for (int i = 0; i < dice.getDice().length; i++) {
             if (!dice.getDie(i).isSelected()) {
-
-               // diceImage[i].setImage(new Image("yatzy/images/die_roll_animation.gif"));
+                animateDie(diceImage[i]);
                 diceImage[i].setDisable(true);
 
                 double pause = new Random().nextDouble() + 0.5;
@@ -272,6 +276,20 @@ public class GameController {
 
         parallelTransition.play();
         parallelTransition.setOnFinished(event -> showPossibleScores(player));
+    }
+
+    public void animateDie(ImageView die) {
+        Timeline timeline = new Timeline();
+        for (int i = 0; i < 10; i++) {
+            int randomValue = random.nextInt(6) + 1;
+            KeyFrame keyFrame = new KeyFrame(Duration.millis(i * 50), event -> {
+                String imagePath = "C:\\Users\\Matija\\Desktop\\java2-game\\Client\\src\\main\\resources\\hr\\algebra\\client\\images\\die" + randomValue + ".png";
+                die.setImage(new Image("file:" + imagePath));
+            });
+            timeline.getKeyFrames().add(keyFrame);
+        }
+        timeline.setCycleCount(1);
+        timeline.play();
     }
 
     private void disableMouseInput(Player player) {
@@ -360,12 +378,12 @@ public class GameController {
         Rectangle rectangle = (Rectangle) stackPane.getChildren().get(0);
         Label label = (Label) stackPane.getChildren().get(1);
 
-        String color = score > 0 ? "40733286" : "#ffd6cc";
+        String color = score > 0 ? "#ffc515" : "transparent";
 
         rectangle.setFill(Color.web(color));
         rectangle.setOpacity(1.0);
 
-        String text = score > 0 ? Integer.toString(score) : "-";
+        String text = score > 0 ? Integer.toString(score) : "x";
         label.setText(text);
 
         stackPane.setCursor(Cursor.HAND);
