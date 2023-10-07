@@ -70,9 +70,6 @@
                      <cursor>
                         <Cursor fx:constant="HAND" />
                      </cursor>
-                     <image>
-                        <Image url="@images/die6.png" />
-                     </image>
                   </ImageView>
                </children>
             </StackPane>
@@ -87,9 +84,6 @@
                      <cursor>
                         <Cursor fx:constant="HAND" />
                      </cursor>
-                     <image>
-                        <Image url="@images/die2.png" />
-                     </image>
                   </ImageView>
                </children>
             </StackPane>
@@ -104,9 +98,6 @@
                      <cursor>
                         <Cursor fx:constant="HAND" />
                      </cursor>
-                     <image>
-                        <Image url="@images/die4.png" />
-                     </image>
                   </ImageView>
                </children>
             </StackPane>
@@ -125,9 +116,6 @@
                      <cursor>
                         <Cursor fx:constant="HAND" />
                      </cursor>
-                     <image>
-                        <Image url="@images/die1.png" />
-                     </image>
                   </ImageView>
                </children>
             </StackPane>
@@ -142,9 +130,6 @@
                      <cursor>
                         <Cursor fx:constant="HAND" />
                      </cursor>
-                     <image>
-                        <Image url="@images/die5.png" />
-                     </image>
                   </ImageView>
                </children>
             </StackPane>

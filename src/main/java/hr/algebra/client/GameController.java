@@ -1,6 +1,7 @@
 package hr.algebra.client;
 
 import hr.algebra.client.models.*;
+import hr.algebra.rmi.RemoteService;
 import hr.algebra.client.utils.ScoreUtil;
 import javafx.animation.KeyFrame;
 import javafx.animation.ParallelTransition;
@@ -8,8 +9,8 @@ import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.event.Event;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.*;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
@@ -20,11 +21,12 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import javafx.stage.Stage;
 import javafx.util.Duration;
 
-import java.io.File;
-import java.io.IOException;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +37,8 @@ public class GameController {
     private static int MAX_ROLLS = 3;
     private static int MIN_ROLLS = 0;
     private static int BONUS_POINTS = 50;
+    private static final int RMI_PORT = 1099;
+    private static final int RANDOM_PORT_HINT = 0;
     private Dice dice = new Dice();
     private ImageView[] diceImage = new ImageView[dice.getDice().length];
     private ImageView[] diceSelectedImage = new ImageView[dice.getDice().length];
@@ -73,7 +77,8 @@ public class GameController {
     @FXML
     private Label lblRollsLeft;
     private Random random;
-
+    private RemoteService stub;
+    private Registry registry;
 
     @FXML
     public void initialize() {
@@ -97,8 +102,14 @@ public class GameController {
         diceSelectedImage[4] = die4Selected;
 
         updateRollLabel();
-    }
 
+        try {
+            registry = LocateRegistry.createRegistry(RMI_PORT);
+            stub = (RemoteService) registry.lookup(RemoteService.REMOTE_OBJECT_NAME);
+        } catch (RemoteException | NotBoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
    /* GameController gameController = fxmlLoader.getController();
         gameController.setPlayer(player);
@@ -138,7 +149,7 @@ public class GameController {
             rec.setWidth(width);
             rec.setHeight(height - 5);
             rec.setOpacity(0);
-            rec.setFill(Color.rgb(255, 255, 255, 0.5));
+            rec.setFill(Color.web("transparent"));
             panePlayer.getChildren().add(rec);
 
             Label labelName = new Label();
@@ -178,6 +189,7 @@ public class GameController {
      */
     private void nextPlayer() {
         Player lastPlayer = players.get(players.size() - 1);
+        System.out.println(lastPlayer.getScores());
         currentPlayerIndex = lastPlayer == currentPlayer() ? 0 : currentPlayerIndex + 1;
         highlightCurrentPlayer();
 
@@ -406,9 +418,15 @@ public class GameController {
         }
     }
 
-    public void completeGame() { // todo clean up
+    public void completeGame() {
+        //todo fix this shit
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("You won!");
+        alert.setContentText("Player " + players.get(0).getName()  + " won!");
+
+        alert.showAndWait();
         /* sort based on total */
-        List<Player> sortedPlayers = new ArrayList<>();
+      /*  List<Player> sortedPlayers = new ArrayList<>();
         for (Player player : players) {
             int playerTotal = player.getScores().get(ScoreType.TOTAL);
             int index = 0;
@@ -428,7 +446,7 @@ public class GameController {
         double width = grid.getColumnConstraints().get(0).getPrefWidth();
         double height = grid.getRowConstraints().get(0).getPrefHeight();
 
-        /* put in grid */
+        *//* put in grid *//*
         for (int row = 1; row <= sortedPlayers.size(); row++) {
             for (int col = 0; col < 3; col++) {
                 int index = sortedPlayers.size() - row;
@@ -465,7 +483,7 @@ public class GameController {
         }
 
         rollingPane.setVisible(false);
-        scorePane.setVisible(true);
+        scorePane.setVisible(true);*/
     }
 
     /*private int realPlayerIndex(Player player) {
