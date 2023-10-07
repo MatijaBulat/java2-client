@@ -77,7 +77,7 @@ public class GameController {
     @FXML
     private Label lblRollsLeft;
     private Random random;
-    private RemoteService stub;
+    private RemoteService remoteService;
     private Registry registry;
 
     @FXML
@@ -103,12 +103,19 @@ public class GameController {
 
         updateRollLabel();
 
+        initRemoteService();
+    }
+
+    private void initRemoteService() {
         try {
-            registry = LocateRegistry.createRegistry(RMI_PORT);
-            stub = (RemoteService) registry.lookup(RemoteService.REMOTE_OBJECT_NAME);
+            registry = LocateRegistry.getRegistry(RMI_PORT);
+            System.out.println("Registry retrieved");
+            remoteService = (RemoteService) registry.lookup(RemoteService.REMOTE_OBJECT_NAME);
+            System.out.println("Service retrieved");
         } catch (RemoteException | NotBoundException e) {
             throw new RuntimeException(e);
         }
+        // initMessages();
     }
 
    /* GameController gameController = fxmlLoader.getController();
