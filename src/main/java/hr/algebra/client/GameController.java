@@ -1,18 +1,20 @@
 package hr.algebra.client;
 
 import hr.algebra.client.models.*;
-import hr.algebra.rmi.RemoteService;
+import hr.algebra.client.network.ChatThread;
 import hr.algebra.client.utils.ScoreUtil;
+import hr.algebra.rmi.RemoteService;
 import javafx.animation.KeyFrame;
 import javafx.animation.ParallelTransition;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
+import javafx.beans.binding.Bindings;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.scene.*;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
@@ -21,16 +23,20 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
 import javafx.util.Duration;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ScheduledExecutorService;
 
 
 public class GameController {
@@ -79,12 +85,33 @@ public class GameController {
     private Random random;
     private RemoteService remoteService;
     private Registry registry;
+    private ScheduledExecutorService executorService;
+
+    /*
+    za chat ****************
+*/
+    @FXML
+    private TextField tfMessage;
+    @FXML
+    private Button btnSend;
+    @FXML
+    private ScrollPane spContainer;
+    @FXML
+    private VBox vbMessages;
+    private static final String SERVER_NAME = "Server";
+    private static final int MESSAGE_LENGTH = 78;
+    private static final String MESSAGE_FORMAT = "%s: %s";
+    private static final int FONT_SIZE = 15;
+
+    private ObservableList<Node> messages;
+    //private List<Message> messages;
 
     @FXML
     public void initialize() {
         random = new Random();
-        List<Player> players = new ArrayList<>();
+        //List<Player> players = new ArrayList<>();
         players.add(StartController.getPlayer());
+        // messages = new ArrayList<Message>();
 
         setPlayers(players);
         setupBoard();
@@ -115,7 +142,48 @@ public class GameController {
         } catch (RemoteException | NotBoundException e) {
             throw new RuntimeException(e);
         }
-        // initMessages();
+        initMessages();
+    }
+
+    private void initMessages() {
+        messages = FXCollections.observableArrayList();
+        Bindings.bindContentBidirectional(messages, vbMessages.getChildren());
+
+        receiveMessages();
+    }
+
+    private void receiveMessages() {
+        System.out.println("receiveMessage fnc");
+        ChatThread chatThread = new ChatThread(this);
+        new Thread(chatThread).start();
+    }
+
+    @FXML
+    private void sendMessage() throws RemoteException {
+        if (!tfMessage.getText().trim().isEmpty()) {
+            String msg = String.format(
+                    MESSAGE_FORMAT,
+                    players.get(0).getName(),
+                    tfMessage.getText().trim());
+
+            remoteService.sendMessage(msg);
+            tfMessage.clear();
+        }
+    }
+
+    public void addMessage(String message) {
+        Label label = new Label();
+        label.setFont(new Font(FONT_SIZE));
+        label.setText(message);
+
+        messages.add(label);
+        moveScrollPane();
+    }
+
+    private void moveScrollPane() {
+        spContainer.applyCss();
+        spContainer.layout();
+        spContainer.setVvalue(1D);
     }
 
    /* GameController gameController = fxmlLoader.getController();
@@ -205,8 +273,11 @@ public class GameController {
         }
     }
 
-   /* *//**
+    /* */
+
+    /**
      * Get the current player
+     *
      * @return the current player
      */
     private Player currentPlayer() {
@@ -234,6 +305,7 @@ public class GameController {
 
     /**
      * Update the display of the scores in the given players score boxes
+     *
      * @param player to update scores
      */
     private void updatePlayerCells(Player player) {
@@ -266,6 +338,7 @@ public class GameController {
             label.setText(text);
         }
     }
+
     /**
      * Roll the unselected dice
      */
@@ -322,7 +395,9 @@ public class GameController {
         enableRollButton();
     }
 
-    private void disableRollButton() { btnRoll.setDisable(true); }
+    private void disableRollButton() {
+        btnRoll.setDisable(true);
+    }
 
     private void enableRollButton() {
         boolean state = rollsRemaining <= MIN_ROLLS;
@@ -429,7 +504,7 @@ public class GameController {
         //todo fix this shit
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("You won!");
-        alert.setContentText("Player " + players.get(0).getName()  + " won!");
+        alert.setContentText("Player " + players.get(0).getName() + " won!");
 
         alert.showAndWait();
         /* sort based on total */
@@ -513,6 +588,7 @@ public class GameController {
         int lastPlayerScoreSize = players.get(players.size() - 1).getScores().size();
         return lastPlayerScoreSize == ScoreType.values().length;
     }
+
     private void setPlayerScore(ScoreType scoreType, int score, Player player) {
         player.setScore(scoreType, score);
         Map<ScoreType, Integer> scores = player.getScores();

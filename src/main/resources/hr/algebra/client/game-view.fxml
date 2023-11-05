@@ -52,8 +52,8 @@
             <VBox fx:id="vbMessages" prefHeight="340.0" prefWidth="248.0" />
          </content>
       </ScrollPane>
-      <TextField fx:id="tfChatMessage" layoutX="26.0" layoutY="474.0" prefHeight="26.0" prefWidth="200.0" />
-      <Button fx:id="btnSend" layoutX="232.0" layoutY="475.0" mnemonicParsing="false" style="-fx-background-color: #ff7602;" text="Send">
+      <TextField fx:id="tfMessage" layoutX="26.0" layoutY="474.0" prefHeight="26.0" prefWidth="200.0" />
+      <Button fx:id="btnSend" layoutX="232.0" layoutY="475.0" mnemonicParsing="false" onAction="#sendMessage" style="-fx-background-color: #ff7602;" text="Send">
          <font>
             <Font name="System Bold" size="12.0" />
          </font></Button>

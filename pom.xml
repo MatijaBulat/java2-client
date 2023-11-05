@@ -38,6 +38,15 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.sun.messaging.mq/fscontext -->
+        <dependency>
+            <groupId>com.sun.messaging.mq</groupId>
+            <artifactId>fscontext</artifactId>
+            <version>4.4.2</version>
+            <scope>compile</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
