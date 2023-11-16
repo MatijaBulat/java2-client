@@ -1,4 +1,4 @@
-package hr.algebra.client.models;
+package hr.algebra.client.model;
 
 public class Dice {
     private Die[] dice = new Die[5];

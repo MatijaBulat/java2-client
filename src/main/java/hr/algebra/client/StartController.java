@@ -1,13 +1,10 @@
 package hr.algebra.client;
 
-import hr.algebra.client.models.Player;
+import hr.algebra.client.model.Player;
 import hr.algebra.client.utils.SceneUtil;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 
 import java.io.IOException;
 

@@ -1,4 +1,4 @@
-package hr.algebra.client.models;
+package hr.algebra.client.model;
 
 public enum FaceValue {
     ONE(1),

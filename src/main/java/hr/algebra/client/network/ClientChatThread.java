@@ -7,18 +7,16 @@ import javafx.application.Platform;
 import javax.naming.NamingException;
 import java.io.*;
 import java.net.Socket;
-import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ChatThread implements Runnable {
+public class ClientChatThread extends Thread {
     private static final String CLIENT_CHAT_PORT_KEY = "client.chat.port";
     private static int CLIENT_CHAT_PORT;
     private Socket chatSocket;
-    private BufferedReader cin;
     private final GameController controller;
 
-    public ChatThread(GameController controller) { this.controller = controller; }
+    public ClientChatThread(GameController controller) { this.controller = controller; }
 
     @Override
     public void run() {
@@ -37,10 +35,10 @@ public class ChatThread implements Runnable {
                     });
                 }
             } catch (IOException e) {
-                Logger.getLogger(ClientThread.class.getName()).log(Level.SEVERE, "IOException", e);
+                Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "IOException", e);
             }
         }  catch (IOException | NamingException e) {
-            Logger.getLogger(ClientThread.class.getName()).log(Level.SEVERE, "IOException | NamingException", e);
+            Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "IOException | NamingException", e);
         }
     }
 }

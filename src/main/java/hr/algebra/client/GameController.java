@@ -1,7 +1,8 @@
 package hr.algebra.client;
 
-import hr.algebra.client.models.*;
-import hr.algebra.client.network.ChatThread;
+import hr.algebra.client.model.*;
+import hr.algebra.client.network.ClientChatThread;
+import hr.algebra.client.network.ClientGameHandler;
 import hr.algebra.client.utils.ScoreUtil;
 import hr.algebra.rmi.RemoteService;
 import javafx.animation.KeyFrame;
@@ -26,17 +27,15 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
 
+import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.ScheduledExecutorService;
 
 
 public class GameController {
@@ -85,11 +84,6 @@ public class GameController {
     private Random random;
     private RemoteService remoteService;
     private Registry registry;
-    private ScheduledExecutorService executorService;
-
-    /*
-    za chat ****************
-*/
     @FXML
     private TextField tfMessage;
     @FXML
@@ -98,20 +92,20 @@ public class GameController {
     private ScrollPane spContainer;
     @FXML
     private VBox vbMessages;
-    private static final String SERVER_NAME = "Server";
-    private static final int MESSAGE_LENGTH = 78;
     private static final String MESSAGE_FORMAT = "%s: %s";
     private static final int FONT_SIZE = 15;
-
     private ObservableList<Node> messages;
-    //private List<Message> messages;
+    private ClientGameHandler clientGameHandler;
 
     @FXML
-    public void initialize() {
+    public void initialize() throws IOException {
+        //Socket socket = new Socket("localhost", 1989);
+        clientGameHandler = new ClientGameHandler(this);
+        clientGameHandler.listenForPlayerUpdatesAndProcess();
+
         random = new Random();
         //List<Player> players = new ArrayList<>();
         players.add(StartController.getPlayer());
-        // messages = new ArrayList<Message>();
 
         setPlayers(players);
         setupBoard();
@@ -131,6 +125,15 @@ public class GameController {
         updateRollLabel();
 
         initRemoteService();
+
+        //try {
+
+            //clientGameThread.sleep(1000);
+
+            //clientGameThread.sendPlayerState(players.get(0));
+        /*} catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }*/
     }
 
     private void initRemoteService() {
@@ -153,9 +156,9 @@ public class GameController {
     }
 
     private void receiveMessages() {
-        System.out.println("receiveMessage fnc");
-        ChatThread chatThread = new ChatThread(this);
-        new Thread(chatThread).start();
+        ClientChatThread clientChatThread = new ClientChatThread(this);
+        clientChatThread.setDaemon(true);
+        clientChatThread.start();
     }
 
     @FXML
@@ -254,8 +257,9 @@ public class GameController {
                     labelScore.setText(Integer.toString(score));
                 }
             }
+            var player = players.get(0);
+            clientGameHandler.sendPlayerState(player);
         }
-
         highlightCurrentPlayer();
     }
 
@@ -272,8 +276,6 @@ public class GameController {
             nextScoreType();
         }
     }
-
-    /* */
 
     /**
      * Get the current player

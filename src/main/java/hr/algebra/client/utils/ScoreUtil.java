@@ -1,7 +1,7 @@
 package hr.algebra.client.utils;
 
-import hr.algebra.client.models.FaceValue;
-import hr.algebra.client.models.ScoreType;
+import hr.algebra.client.model.FaceValue;
+import hr.algebra.client.model.ScoreType;
 
 import java.util.EnumMap;
 import java.util.Map;

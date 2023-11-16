@@ -1,6 +1,6 @@
 package hr.algebra.client.network;
 
-import hr.algebra.client.models.Player;
+import hr.algebra.client.model.Player;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -40,7 +40,6 @@ public class ServerThread extends Thread {
             }
         } catch (Exception e) {
             System.err.println("An error occurred in the server thread:");
-            e.printStackTrace();
             Logger.getLogger(ServerThread.class.getName()).log(Level.SEVERE, null, e);
         }
     }

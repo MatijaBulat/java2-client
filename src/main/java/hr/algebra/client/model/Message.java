@@ -1,4 +1,4 @@
-package hr.algebra.client.models;
+package hr.algebra.client.model;
 
 import java.io.Serializable;
 import java.time.LocalTime;

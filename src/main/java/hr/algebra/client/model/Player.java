@@ -1,11 +1,20 @@
-package hr.algebra.client.models;
+package hr.algebra.client.model;
 
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.EnumMap;
 import java.util.Map;
 
-public class Player {
-    private final String name;
+public class Player implements Externalizable {
+    private static final long serialVersionUID = 1L;
+    private String name;
     private Map<ScoreType, Integer> scores = new EnumMap<>(ScoreType.class);
+
+    public Player() {
+
+    }
 
     public Player(String name) {
         this.name = name;
@@ -57,6 +66,18 @@ public class Player {
         scores.put(ScoreType.SUM, 0);
         scores.put(ScoreType.BONUS, 0);
         scores.put(ScoreType.TOTAL, 0);
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        out.writeObject(scores);
+        out.writeUTF(name);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        scores = (Map<ScoreType, Integer>) in.readObject();
+        name = in.readUTF();
     }
 }
 
