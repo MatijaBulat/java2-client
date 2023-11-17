@@ -16,29 +16,39 @@ public class ClientChatThread extends Thread {
     private Socket chatSocket;
     private final GameController controller;
 
-    public ClientChatThread(GameController controller) { this.controller = controller; }
-
-    @Override
-    public void run() {
+    public ClientChatThread(GameController controller) {
+        this.controller = controller;
         try {
             CLIENT_CHAT_PORT = Integer.parseInt(JndiHelper.getValueFromConfiguration(CLIENT_CHAT_PORT_KEY));
 
             chatSocket = new Socket("localhost", CLIENT_CHAT_PORT);
+        } catch (IOException | NamingException e) {
+            Logger.getLogger(ClientChatThread.class.getName()).log(Level.SEVERE, "IOException | NamingException", e);
+            closeConnection();
+        }
+    }
 
-            try (BufferedReader cin = new BufferedReader(new InputStreamReader(chatSocket.getInputStream()))) {
+    @Override
+    public void run() {
+        try (BufferedReader cin = new BufferedReader(new InputStreamReader(chatSocket.getInputStream()))) {
+            while (chatSocket.isConnected()) {
+                String message = cin.readLine();
 
-                while (true) {
-                    String message = cin.readLine();
-
-                    Platform.runLater(() -> {
-                        controller.addMessage(message);
-                    });
-                }
-            } catch (IOException e) {
-                Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "IOException", e);
+                Platform.runLater(() -> {
+                    controller.addMessage(message);
+                });
             }
-        }  catch (IOException | NamingException e) {
-            Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "IOException | NamingException", e);
+        } catch (IOException e) {
+            Logger.getLogger(ClientChatThread.class.getName()).log(Level.SEVERE, "IOException", e);
+            closeConnection();
+        }
+    }
+
+    private void closeConnection() {
+        try {
+            if (this.chatSocket != null) this.chatSocket.close();
+        } catch (IOException ex) {
+            Logger.getLogger(ClientChatThread.class.getName()).log(Level.SEVERE, "IOException", ex);
         }
     }
 }

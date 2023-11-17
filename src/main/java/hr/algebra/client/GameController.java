@@ -26,7 +26,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
-
 import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -125,15 +124,6 @@ public class GameController {
         updateRollLabel();
 
         initRemoteService();
-
-        //try {
-
-            //clientGameThread.sleep(1000);
-
-            //clientGameThread.sendPlayerState(players.get(0));
-        /*} catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }*/
     }
 
     private void initRemoteService() {

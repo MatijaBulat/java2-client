@@ -3,7 +3,6 @@ package hr.algebra.client.network;
 import hr.algebra.client.GameController;
 import hr.algebra.client.model.Player;
 import hr.algebra.client.utils.JndiHelper;
-import javafx.application.Platform;
 
 import javax.naming.NamingException;
 import java.io.IOException;
@@ -32,30 +31,9 @@ public class ClientGameHandler {
             objectInputStream = new ObjectInputStream(clientSocket.getInputStream());
         } catch (NamingException | IOException e) {
             Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "NamingException | IOException", e);
-            closeEverything();
+            closeConnection();
         }
     }
-
-    /*@Override
-    public void run() {
-
-            try  {
-
-                while (true) {
-                    System.out.println("while udara");
-                    //Player player = (Player) objectInputStream.readObject();
-                    Player player = (Player) objectInputStream.readObject();
-                    System.out.println(player + " -> player sa servera");
-
-                    *//*Platform.runLater(() -> {
-                        System.out.println(player + " -> player sa servera");
-                        //controller.setPlayer(player);
-                    });*//*
-                }
-            } catch (IOException e) {
-                Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "IOException", e);
-            }
-    }*/
 
     public void sendPlayerState(Player player) {
         System.out.println("sendPlayerState fnc");
@@ -65,7 +43,7 @@ public class ClientGameHandler {
             System.out.println("player sent: " + player);
         } catch (IOException e) {
             Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "IOException", e);
-            closeEverything();
+            closeConnection();
         }
     }
 
@@ -86,14 +64,15 @@ public class ClientGameHandler {
                        });*/
                    } catch (IOException | ClassNotFoundException e) {
                        Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "IOException | ClassNotFoundException", e);
-                       closeEverything();
+                       closeConnection();
+                       break;
                    }
                }
            }
        }).start();
     }
 
-    private void closeEverything() {
+    private void closeConnection() {
         try {
             if (this.objectOutputStream != null) this.objectOutputStream.close();
             if (this.objectInputStream != null) this.objectInputStream.close();
