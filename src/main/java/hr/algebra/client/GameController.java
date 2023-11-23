@@ -3,6 +3,7 @@ package hr.algebra.client;
 import hr.algebra.client.model.*;
 import hr.algebra.client.network.ClientChatThread;
 import hr.algebra.client.network.ClientGameHandler;
+import hr.algebra.client.utils.JndiHelper;
 import hr.algebra.client.utils.ScoreUtil;
 import hr.algebra.rmi.RemoteService;
 import javafx.animation.KeyFrame;
@@ -26,30 +27,39 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
+
+import javax.naming.NamingException;
 import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 public class GameController {
     private static int MAX_ROLLS = 3;
     private static int MIN_ROLLS = 0;
     private static int BONUS_POINTS = 50;
-    private static final int RMI_PORT = 1099;
-    private static final int RANDOM_PORT_HINT = 0;
+    private static final String RMI_PORT_KEY = "rmi.port";
+    private static final String MESSAGE_FORMAT = "%s: %s";
+    private static final int FONT_SIZE = 15;
+    private ObservableList<Node> messages;
+    private ClientGameHandler clientGameHandler;
     private Dice dice = new Dice();
     private ImageView[] diceImage = new ImageView[dice.getDice().length];
     private ImageView[] diceSelectedImage = new ImageView[dice.getDice().length];
-    private List<Player> players = new ArrayList<>();
-    private ScoreType currentScoreType = ScoreType.ONES; // used when playing forced
+    private volatile Player player = new Player();
+    private volatile Player playerTwo = new Player();
     private int rollsRemaining = MAX_ROLLS;
-    private int currentPlayerIndex = 0;
+    private boolean playerTurn = true;
+    private boolean isPlayerTwoColumnSet = false;
     @FXML
     private AnchorPane scorePane;
     @FXML
@@ -91,49 +101,33 @@ public class GameController {
     private ScrollPane spContainer;
     @FXML
     private VBox vbMessages;
-    private static final String MESSAGE_FORMAT = "%s: %s";
-    private static final int FONT_SIZE = 15;
-    private ObservableList<Node> messages;
-    private ClientGameHandler clientGameHandler;
+    @FXML
+    private Label lblOpponentsTurn;
 
     @FXML
-    public void initialize() throws IOException {
-        //Socket socket = new Socket("localhost", 1989);
-        clientGameHandler = new ClientGameHandler(this);
-        clientGameHandler.listenForPlayerUpdatesAndProcess();
+    public void initialize() {
+        initClientGameHandler();
+        initRemoteService();
+        setPlayer();
 
         random = new Random();
-        //List<Player> players = new ArrayList<>();
-        players.add(StartController.getPlayer());
 
-        setPlayers(players);
         setupBoard();
-
-        diceImage[0] = die0;
-        diceImage[1] = die1;
-        diceImage[2] = die2;
-        diceImage[3] = die3;
-        diceImage[4] = die4;
-
-        diceSelectedImage[0] = die0Selected;
-        diceSelectedImage[1] = die1Selected;
-        diceSelectedImage[2] = die2Selected;
-        diceSelectedImage[3] = die3Selected;
-        diceSelectedImage[4] = die4Selected;
-
+        initDiceImages();
         updateRollLabel();
+    }
 
-        initRemoteService();
+    private void initClientGameHandler() {
+        clientGameHandler = new ClientGameHandler(this);
+        clientGameHandler.listenForPlayerUpdatesAndProcess();
     }
 
     private void initRemoteService() {
         try {
-            registry = LocateRegistry.getRegistry(RMI_PORT);
-            System.out.println("Registry retrieved");
+            registry = LocateRegistry.getRegistry(Integer.parseInt(JndiHelper.getValueFromConfiguration(RMI_PORT_KEY)));
             remoteService = (RemoteService) registry.lookup(RemoteService.REMOTE_OBJECT_NAME);
-            System.out.println("Service retrieved");
-        } catch (RemoteException | NotBoundException e) {
-            throw new RuntimeException(e);
+        } catch (NotBoundException | NamingException | IOException e) {
+            Logger.getLogger(GameController.class.getName()).log(Level.SEVERE, "NotBoundException | NamingException | IOException", e);
         }
         initMessages();
     }
@@ -156,7 +150,7 @@ public class GameController {
         if (!tfMessage.getText().trim().isEmpty()) {
             String msg = String.format(
                     MESSAGE_FORMAT,
-                    players.get(0).getName(),
+                    player.getName(),
                     tfMessage.getText().trim());
 
             remoteService.sendMessage(msg);
@@ -179,135 +173,102 @@ public class GameController {
         spContainer.setVvalue(1D);
     }
 
-   /* GameController gameController = fxmlLoader.getController();
-        gameController.setPlayer(player);
-        gameController.setupBoard();*/
+    private void setPlayer() {
+        player.setName(StartController.getPlayerName());
+    }
 
-    /**
-     * Setup board based on players and game mode. Should only be called once per game.
-     */
     public void setupBoard() {
-        grid.add(new Label("Ones"), 0, 1);
-        grid.add(new Label("Twos"), 0, 2);
-        grid.add(new Label("Threes"), 0, 3);
-        grid.add(new Label("Fours"), 0, 4);
-        grid.add(new Label("Fives"), 0, 5);
-        grid.add(new Label("Sixes"), 0, 6);
-        grid.add(new Label("Sum 63"), 0, 7);
-        grid.add(new Label("Bonus"), 0, 8);
-        grid.add(new Label("1 pair"), 0, 9);
-        grid.add(new Label("2 pair"), 0, 10);
-        grid.add(new Label("3 of a kind"), 0, 11);
-        grid.add(new Label("4 of a kind"), 0, 12);
-        grid.add(new Label("Small straight"), 0, 13);
-        grid.add(new Label("Large straight"), 0, 14);
-        grid.add(new Label("Full house"), 0, 15);
-        grid.add(new Label("Chance"), 0, 16);
-        grid.add(new Label("Yatzy"), 0, 17);
-        grid.add(new Label("Total"), 0, 18);
-
-        for (int column = 1; column < players.size() + 1; column++) {
-            double width = grid.getColumnConstraints().get(column).getPrefWidth();
-            double height = grid.getRowConstraints().get(0).getPrefHeight();
-
-            StackPane panePlayer = new StackPane();
-            grid.add(panePlayer, column, 0);
-
-            Rectangle rec = new Rectangle();
-            rec.setWidth(width);
-            rec.setHeight(height - 5);
-            rec.setOpacity(0);
-            rec.setFill(Color.web("transparent"));
-            panePlayer.getChildren().add(rec);
-
-            Label labelName = new Label();
-            panePlayer.getChildren().add(labelName);
-
-            String playerName = players.get(column - 1).getName();
-            labelName.setText(playerName);
-
-            for (ScoreType scoreType : ScoreType.values()) {
-                int row = scoreType.ordinal() + 1;
-
-                StackPane paneScore = new StackPane();
-                grid.add(paneScore, column, row);
-
-                Rectangle rectangle = new Rectangle();
-                rectangle.setWidth(width);
-                rectangle.setHeight(height);
-                rectangle.setOpacity(0);
-                paneScore.getChildren().add(rectangle);
-
-                Label labelScore = new Label();
-                paneScore.getChildren().add(labelScore);
-
-                if (scoreType == ScoreType.SUM || scoreType == ScoreType.BONUS || scoreType == ScoreType.TOTAL) {
-                    int score = players.get(column - 1).getScores().getOrDefault(scoreType, 0);
-                    labelScore.setTextFill(Color.web("C8584A"));
-                    labelScore.setText(Integer.toString(score));
-                }
-            }
-            var player = players.get(0);
-            clientGameHandler.sendPlayerState(player);
+        for (int i = 0; i < ScoreType.values().length; i++) {
+            grid.add(new Label(ScoreType.values()[i].getValue()), 0, i + 1);
         }
-        highlightCurrentPlayer();
+
+        setUpPlayerColumn(player, 1);
+        clientGameHandler.sendPlayerState(player);
     }
 
-    /**
-     * Set the player whos turn is next
-     */
-    private void nextPlayer() {
-        Player lastPlayer = players.get(players.size() - 1);
-        System.out.println(lastPlayer.getScores());
-        currentPlayerIndex = lastPlayer == currentPlayer() ? 0 : currentPlayerIndex + 1;
-        highlightCurrentPlayer();
+    private synchronized void setUpPlayerColumn(Player player, int columnNum) {
+        double width = grid.getColumnConstraints().get(1).getPrefWidth();
+        double height = grid.getRowConstraints().get(0).getPrefHeight();
 
-        if (currentPlayerIndex == 0) { // todo move this to a better suited place
-            nextScoreType();
-        }
-    }
+        StackPane panePlayer = new StackPane();
+        grid.add(panePlayer, columnNum, 0);
 
-    /**
-     * Get the current player
-     *
-     * @return the current player
-     */
-    private Player currentPlayer() {
-        return players.get(currentPlayerIndex);
-    }
+        Rectangle rec = new Rectangle();
+        rec.setWidth(width);
+        rec.setHeight(height - 5);
+        rec.setOpacity(0);
+        rec.setFill(Color.web("transparent"));
+        panePlayer.getChildren().add(rec);
 
-    /**
-     * Highlight the name of the current player in the GUI
-     */
-    private void highlightCurrentPlayer() {
-        for (int i = 0; i < players.size(); i++) {
-            int column = playerToColumnIndex(players.get(i));
-            int row = 0;
+        Label labelName = new Label();
+        panePlayer.getChildren().add(labelName);
 
-            StackPane stackPane = (StackPane) getNodeFromGridPane(grid, column, row);
-            Rectangle rectangle = (Rectangle) stackPane.getChildren().get(0);
+        labelName.setText(player.getName());
 
-            if (i == currentPlayerIndex) {
-                rectangle.setOpacity(1.0);
-            } else {
-                rectangle.setOpacity(0.0);
+        for (ScoreType scoreType : ScoreType.values()) {
+            int row = scoreType.ordinal() + 1;
+
+            StackPane paneScore = new StackPane();
+            grid.add(paneScore, columnNum, row);
+
+            Rectangle rectangle = new Rectangle();
+            rectangle.setWidth(width);
+            rectangle.setHeight(height);
+            rectangle.setOpacity(0);
+            paneScore.getChildren().add(rectangle);
+
+            Label labelScore = new Label();
+            paneScore.getChildren().add(labelScore);
+
+            if (scoreType == ScoreType.SUM || scoreType == ScoreType.BONUS || scoreType == ScoreType.TOTAL) {
+                int score = player.getScores().getOrDefault(scoreType, 0);
+                labelScore.setTextFill(Color.web("C8584A"));
+                labelScore.setText(Integer.toString(score));
             }
         }
     }
 
-    /**
-     * Update the display of the scores in the given players score boxes
-     *
-     * @param player to update scores
-     */
-    private void updatePlayerCells(Player player) {
-        int column = playerToColumnIndex(player);
+    private void initDiceImages() {
+        diceImage[0] = die0;
+        diceImage[1] = die1;
+        diceImage[2] = die2;
+        diceImage[3] = die3;
+        diceImage[4] = die4;
+
+        diceSelectedImage[0] = die0Selected;
+        diceSelectedImage[1] = die1Selected;
+        diceSelectedImage[2] = die2Selected;
+        diceSelectedImage[3] = die3Selected;
+        diceSelectedImage[4] = die4Selected;
+    }
+
+    public void setOpponentPlayer(Player player) {
+        if (!isPlayerTwoColumnSet) {
+            setUpPlayerColumn(player, 2);
+            isPlayerTwoColumnSet = true;
+        }
+        playerTwo = player;
+        updatePlayerCells(player, 2);
+        startPlayerTurn();
+
+        if (checkIfDone()) {
+            completeGame();
+        }
+    }
+
+    private void startPlayerTurn() {
+        playerTurn = true;
+        resetRollButton();
+        lblOpponentsTurn.setVisible(false);
+    }
+
+    private synchronized void updatePlayerCells(Player player, int columnNum) {
         Map<ScoreType, Integer> scores = player.getScores();
 
         for (ScoreType scoreType : ScoreType.values()) {
             int row = scoreType.ordinal() + 1;
 
-            StackPane stackPane = (StackPane) getNodeFromGridPane(grid, column, row);
+            StackPane stackPane = (StackPane) getNodeFromGridPane(grid, columnNum, row);
             stackPane.setCursor(Cursor.DEFAULT);
             stackPane.setOnMouseClicked(null);
 
@@ -326,19 +287,15 @@ public class GameController {
             } else {
                 text = "";
             }
-
             label.setText(text);
         }
     }
 
-    /**
-     * Roll the unselected dice
-     */
     public void roll() {
-        Player player = currentPlayer();
-        rollsRemaining--; // decrease remaining rolls for each roll done
-        disableMouseInput(player); // to avoid double rolls and locking old score
-        updateRollLabel(); // update number of rolls
+        rollsRemaining--;
+
+        disableMouseInput(player);
+        updateRollLabel();
 
         dice.roll();
 
@@ -357,7 +314,6 @@ public class GameController {
                 parallelTransition.getChildren().add(delay);
             }
         }
-
         parallelTransition.play();
         parallelTransition.setOnFinished(event -> showPossibleScores(player));
     }
@@ -378,7 +334,7 @@ public class GameController {
 
     private void disableMouseInput(Player player) {
         disableRollButton();
-        updatePlayerCells(player);
+        updatePlayerCells(player, 1);
     }
 
     private void resetRollButton() {
@@ -400,11 +356,6 @@ public class GameController {
         lblRollsLeft.setText(Integer.toString(rollsRemaining));
     }
 
-    /**
-     * Update the image of the given dice by index
-     *
-     * @param index dice index [0-4]
-     */
     private void updateDiceImage(int index) {
         FaceValue faceValue = dice.getDie(index).getFaceValue();
 
@@ -428,15 +379,14 @@ public class GameController {
                 diceImage[index].setImage(new Image("C:\\Users\\Matija\\Desktop\\java2-game\\Client\\src\\main\\resources\\hr\\algebra\\client\\images\\die6.png"));
                 break;
             default:
-                diceImage[index].setImage(null); // should never occur
+                diceImage[index].setImage(null);
                 break;
         }
-
         diceImage[index].setDisable(false);
     }
 
     private void showPossibleScores(Player player) {
-        int column = playerToColumnIndex(player);
+        int column = 1;
         ScoreUtil scoreUtil = new ScoreUtil(dice.getFaceValues());
         final Map<ScoreType, Integer> possibleScores = scoreUtil.scoreMap();
 
@@ -446,14 +396,11 @@ public class GameController {
             if (scoreType == ScoreType.SUM || scoreType == ScoreType.BONUS || scoreType == ScoreType.TOTAL) {
                 continue;
             }
-
             if (player.getScores().containsKey(scoreType)) {
                 continue;
             }
-
             makeScoreAvailable(scoreType, player, possibleScores.get(scoreType), column, row);
         }
-
         enableRollButton();
     }
 
@@ -478,107 +425,55 @@ public class GameController {
 
     private void selectScore(ScoreType scoreType, int score, Player player) {
         setPlayerScore(scoreType, score, player);
-        updatePlayerCells(player);
+        updatePlayerCells(player, 1);
 
-        boolean done = checkIfDone();
-
-        if (!done) {
+        if (!checkIfDone()) {
             resetDice();
-            resetRollButton();
-            nextPlayer();
+            disableRollButton();
+
+            lblOpponentsTurn.setVisible(true);
+            playerTurn = false;
+
+            clientGameHandler.sendPlayerState(player);
         } else {
-            System.out.println("complete game");
             completeGame();
         }
     }
 
     public void completeGame() {
-        //todo fix this shit
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("You won!");
-        alert.setContentText("Player " + players.get(0).getName() + " won!");
+        var result = determineWinner(player, playerTwo);
 
-        alert.showAndWait();
-        /* sort based on total */
-      /*  List<Player> sortedPlayers = new ArrayList<>();
-        for (Player player : players) {
-            int playerTotal = player.getScores().get(ScoreType.TOTAL);
-            int index = 0;
-            for (int i = 0; i < sortedPlayers.size(); i++) {
-                int sortedTotal = sortedPlayers.get(i).getScores().get(ScoreType.TOTAL);
-
-                if (playerTotal < sortedTotal) {
-                    index = i;
-                    break;
-                }
-                index = i + 1;
-            }
-            sortedPlayers.add(index, player);
+        if (result != null) {
+            showAlert("Player " + result.getName() + " won!\n Score: " + result.getScores().get(ScoreType.TOTAL));
+        } else {
+            showAlert("It’s a draw.");
         }
-
-        GridPane gridPane = (GridPane) scorePane.getChildren().get(0);
-        double width = grid.getColumnConstraints().get(0).getPrefWidth();
-        double height = grid.getRowConstraints().get(0).getPrefHeight();
-
-        *//* put in grid *//*
-        for (int row = 1; row <= sortedPlayers.size(); row++) {
-            for (int col = 0; col < 3; col++) {
-                int index = sortedPlayers.size() - row;
-
-                StackPane stackPane = new StackPane();
-                gridPane.add(stackPane, col, row);
-
-                Rectangle rectangle = new Rectangle();
-                rectangle.setWidth(width);
-                rectangle.setHeight(height);
-               // rectangle.setFill(Color.web(colors[realPlayerIndex(sortedPlayers.get(index))]));
-                stackPane.getChildren().add(rectangle);
-
-                Label label = new Label();
-                String text = "";
-
-                switch (col) {
-                    case 0:
-                        text = String.format("#%d", row);
-                        break;
-                    case 1:
-                        text = sortedPlayers.get(index).getName();
-                        break;
-                    case 2:
-                        text += sortedPlayers.get(index).getScores().get(ScoreType.TOTAL);
-                        break;
-                    default:
-                        break;
-                }
-
-                label.setText(text);
-                stackPane.getChildren().add(label);
-            }
-        }
-
-        rollingPane.setVisible(false);
-        scorePane.setVisible(true);*/
     }
 
-    /*private int realPlayerIndex(Player player) {
-        for (int i = 0; i < players.size(); i++) {
-            if (player.equals(players.get(i))) {
-                return i;
-            }
-        }
-        return -1;
-    }*/
+    private void showAlert(String text) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Information Dialog");
+        alert.setHeaderText("Game over!");
+        alert.setContentText(text);
+        alert.show();
+    }
 
-    private void nextScoreType() {
-        do {
-            currentScoreType = currentScoreType.next();
+    public Player determineWinner(Player player1, Player player2) {
+        int scorePlayer1 = player1.getScores().get(ScoreType.TOTAL);
+        int scorePlayer2 = player2.getScores().get(ScoreType.TOTAL);
+
+        if (scorePlayer1 > scorePlayer2) {
+            return player1;
+        } else if (scorePlayer2 > scorePlayer1) {
+            return player2;
+        } else {
+            return null;
         }
-        while (currentScoreType == ScoreType.SUM || currentScoreType == ScoreType.BONUS || currentScoreType == ScoreType.TOTAL);
     }
 
     private boolean checkIfDone() {
-        int lastPlayerScoreSize = players.get(players.size() - 1).getScores().size();
-        return lastPlayerScoreSize == ScoreType.values().length;
+        var scoreLength = ScoreType.values().length;
+        return player.getScores().size() == scoreLength && playerTwo.getScores().size() == scoreLength;
     }
 
     private void setPlayerScore(ScoreType scoreType, int score, Player player) {
@@ -634,7 +529,7 @@ public class GameController {
                 die4Selected.setOpacity(opacity);
                 break;
             default:
-                break; // should never occur
+                break;
         }
     }
 
@@ -647,51 +542,17 @@ public class GameController {
         return null;
     }
 
-  /*  private Node getNodeFromGridPane(GridPane gridPane, int col, int row) {
-        for (Node node : gridPane.getChildren()) {
-            if (!(node instanceof Group)) {
-                Integer columnIndex = GridPane.getColumnIndex(node);
-                Integer rowIndex = GridPane.getRowIndex(node);
-                if (columnIndex != null && rowIndex != null && columnIndex.intValue() == col && rowIndex.intValue() == row) {
-                    return node;
-                }
-            }
-        }
-        return null;
-    }*/
-
-    private int playerToColumnIndex(Player player) {
-        for (int i = 0; i < players.size(); i++) {
-            if (player == players.get(i)) {
-                return i + 1;
-            }
-        }
-        throw new IllegalArgumentException("Illegal player argument");
-    }
-
     private void resetDice() {
-        /* remove dice images */
         for (ImageView dieImage : diceImage) {
             dieImage.setImage(null);
         }
 
-        /* remove dice selected images*/
         for (ImageView dieSelectedImage : diceSelectedImage) {
             dieSelectedImage.setOpacity(0.0);
         }
 
-        /* set all dice to unselected */
         for (Die die : dice.getDice()) {
             die.setSelected(false);
         }
     }
-
-    public void setPlayers(List<Player> players) {
-        this.players = players;
-    }
-
-    /*private void clearBoard() {
-        grid.getChildren().clear();
-    }*/
-
 }

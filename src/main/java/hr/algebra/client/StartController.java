@@ -13,12 +13,12 @@ public class StartController {
     private TextField playerNameTf;
     @FXML
     private Button startGameBtn;
-    private static Player player;
+    public static String playerName;
 
     public void startGame() throws IOException {
-        player = new Player(playerNameTf.getText());
+        playerName = playerNameTf.getText();
 
         SceneUtil.setNewSceneToStage("game-view.fxml", "Yahtzee", 924, 527);
     }
-    public static Player getPlayer() { return player; }
+    public static String getPlayerName() { return playerName; }
 }

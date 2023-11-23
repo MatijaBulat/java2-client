@@ -180,5 +180,10 @@
             <RowConstraints prefHeight="23.0" />
          </rowConstraints>
       </GridPane>
+      <Label fx:id="lblOpponentsTurn" layoutX="661.0" layoutY="432.0" prefHeight="43.0" prefWidth="190.0" text="Opponent's turn" textAlignment="CENTER" visible="false">
+         <font>
+            <Font name="System Bold" size="24.0" />
+         </font>
+      </Label>
    </children>
 </AnchorPane>

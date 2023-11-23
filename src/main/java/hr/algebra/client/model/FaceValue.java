@@ -14,9 +14,6 @@ public enum FaceValue {
         this.value = value;
     }
 
-    /**
-     * @return the value of a face value
-     */
     public int getValue() {
         return value;
     }

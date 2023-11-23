@@ -2,10 +2,13 @@ package hr.algebra.client.network;
 
 import hr.algebra.client.GameController;
 import hr.algebra.client.model.Player;
+import hr.algebra.client.model.ScoreType;
 import hr.algebra.client.utils.JndiHelper;
+import javafx.application.Platform;
 
 import javax.naming.NamingException;
 import java.io.IOException;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.io.*;
@@ -36,11 +39,10 @@ public class ClientGameHandler {
     }
 
     public void sendPlayerState(Player player) {
-        System.out.println("sendPlayerState fnc");
         try {
+            objectOutputStream.reset();
             objectOutputStream.writeObject(player);
             objectOutputStream.flush();
-            System.out.println("player sent: " + player);
         } catch (IOException e) {
             Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "IOException", e);
             closeConnection();
@@ -48,28 +50,24 @@ public class ClientGameHandler {
     }
 
     public void listenForPlayerUpdatesAndProcess() {
-        System.out.println("listenForPlayerUpdatesAndProcess fnc");
-       new Thread(new Runnable() {
-           @Override
-           public void run() {
-               System.out.println("listenForPlayerUpdatesAndProcess run fnc");
-               while(clientSocket.isConnected()) {
-                   System.out.println("while loop");
-                   try {
-                       Player player = (Player) objectInputStream.readObject();
-                       System.out.println("player received: " + player);
-                      /* Platform.runLater(() -> {
-                           System.out.println("platform run later, update ui");
-                           //controller.setPlayer(player);
-                       });*/
-                   } catch (IOException | ClassNotFoundException e) {
-                       Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "IOException | ClassNotFoundException", e);
-                       closeConnection();
-                       break;
-                   }
-               }
-           }
-       }).start();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (clientSocket.isConnected()) {
+                    try {
+                        Player player = (Player) objectInputStream.readObject();
+
+                        Platform.runLater(() -> {
+                            controller.setOpponentPlayer(player);
+                        });
+                    } catch (IOException | ClassNotFoundException e) {
+                        Logger.getLogger(ClientGameHandler.class.getName()).log(Level.SEVERE, "IOException | ClassNotFoundException", e);
+                        closeConnection();
+                        break;
+                    }
+                }
+            }
+        }).start();
     }
 
     private void closeConnection() {
