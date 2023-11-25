@@ -3,8 +3,7 @@ package hr.algebra.client;
 import hr.algebra.client.model.*;
 import hr.algebra.client.network.ClientChatThread;
 import hr.algebra.client.network.ClientGameHandler;
-import hr.algebra.client.utils.JndiHelper;
-import hr.algebra.client.utils.ScoreUtil;
+import hr.algebra.client.utils.*;
 import hr.algebra.rmi.RemoteService;
 import javafx.animation.KeyFrame;
 import javafx.animation.ParallelTransition;
@@ -13,6 +12,7 @@ import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.scene.*;
@@ -27,21 +27,18 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
-
 import javax.naming.NamingException;
+import java.io.File;
 import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 
 public class GameController {
     private static int MAX_ROLLS = 3;
@@ -159,12 +156,15 @@ public class GameController {
     }
 
     public void addMessage(String message) {
+        messages.add(createMessageLabel(message));
+        moveScrollPane();
+    }
+
+    private Label createMessageLabel(String message) {
         Label label = new Label();
         label.setFont(new Font(FONT_SIZE));
         label.setText(message);
-
-        messages.add(label);
-        moveScrollPane();
+        return label;
     }
 
     private void moveScrollPane() {
@@ -193,39 +193,49 @@ public class GameController {
         StackPane panePlayer = new StackPane();
         grid.add(panePlayer, columnNum, 0);
 
-        Rectangle rec = new Rectangle();
-        rec.setWidth(width);
-        rec.setHeight(height - 5);
-        rec.setOpacity(0);
+        Rectangle rec = createRectangle(width, height - 5);
         rec.setFill(Color.web("transparent"));
+
         panePlayer.getChildren().add(rec);
 
         Label labelName = new Label();
-        panePlayer.getChildren().add(labelName);
-
         labelName.setText(player.getName());
+
+        panePlayer.getChildren().add(labelName);
 
         for (ScoreType scoreType : ScoreType.values()) {
             int row = scoreType.ordinal() + 1;
-
-            StackPane paneScore = new StackPane();
-            grid.add(paneScore, columnNum, row);
-
-            Rectangle rectangle = new Rectangle();
-            rectangle.setWidth(width);
-            rectangle.setHeight(height);
-            rectangle.setOpacity(0);
-            paneScore.getChildren().add(rectangle);
-
-            Label labelScore = new Label();
-            paneScore.getChildren().add(labelScore);
-
-            if (scoreType == ScoreType.SUM || scoreType == ScoreType.BONUS || scoreType == ScoreType.TOTAL) {
-                int score = player.getScores().getOrDefault(scoreType, 0);
-                labelScore.setTextFill(Color.web("C8584A"));
-                labelScore.setText(Integer.toString(score));
-            }
+            setUpScorePane(player, columnNum, width, height, row, scoreType);
         }
+    }
+
+    private Rectangle createRectangle(double width, double height) {
+        Rectangle rectangle = new Rectangle();
+        rectangle.setWidth(width);
+        rectangle.setHeight(height);
+        rectangle.setOpacity(0);
+        return rectangle;
+    }
+
+    private void setUpScorePane(Player player, int columnNum, double width, double height, int row, ScoreType scoreType) {
+        StackPane paneScore = new StackPane();
+        grid.add(paneScore, columnNum, row);
+
+        Rectangle rectangle = createRectangle(width, height);
+        paneScore.getChildren().add(rectangle);
+
+        Label labelScore = new Label();
+        paneScore.getChildren().add(labelScore);
+
+        if (isScoreTypeSumBonusTotal(scoreType)) {
+            int score = player.getScores().getOrDefault(scoreType, 0);
+            labelScore.setTextFill(Color.web("C8584A"));
+            labelScore.setText(Integer.toString(score));
+        }
+    }
+
+    private boolean isScoreTypeSumBonusTotal(ScoreType scoreType) {
+        return scoreType == ScoreType.SUM || scoreType == ScoreType.BONUS || scoreType == ScoreType.TOTAL;
     }
 
     private void initDiceImages() {
@@ -278,7 +288,7 @@ public class GameController {
             Label label = (Label) stackPane.getChildren().get(1);
             String text;
 
-            if (scoreType == ScoreType.SUM || scoreType == ScoreType.BONUS || scoreType == ScoreType.TOTAL) {
+            if (isScoreTypeSumBonusTotal(scoreType)) {
                 int score = scores.getOrDefault(scoreType, 0);
                 text = Integer.toString(score);
             } else if (scores.containsKey(scoreType)) {
@@ -393,7 +403,7 @@ public class GameController {
         for (ScoreType scoreType : ScoreType.values()) {
             int row = scoreType.ordinal() + 1;
 
-            if (scoreType == ScoreType.SUM || scoreType == ScoreType.BONUS || scoreType == ScoreType.TOTAL) {
+            if (isScoreTypeSumBonusTotal(scoreType)) {
                 continue;
             }
             if (player.getScores().containsKey(scoreType)) {
@@ -444,20 +454,20 @@ public class GameController {
         var result = determineWinner(player, playerTwo);
 
         if (result != null) {
-            showAlert("Player " + result.getName() + " won!\n Score: " + result.getScores().get(ScoreType.TOTAL));
+            DialogUtils.showAlert(
+                    Alert.AlertType.INFORMATION,
+                    "Information Dialog",
+                    "Game over!",
+                    "Player " + result.getName() + " won!\n Score: " + result.getScores().get(ScoreType.TOTAL));
         } else {
-            showAlert("It’s a draw.");
+            DialogUtils.showAlert(
+                    Alert.AlertType.INFORMATION,
+                    "Information Dialog",
+                    "Game over!",
+                    "It’s a draw.");
         }
     }
-
-    private void showAlert(String text) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Information Dialog");
-        alert.setHeaderText("Game over!");
-        alert.setContentText(text);
-        alert.show();
-    }
-
+    
     public Player determineWinner(Player player1, Player player2) {
         int scorePlayer1 = player1.getScores().get(ScoreType.TOTAL);
         int scorePlayer2 = player2.getScores().get(ScoreType.TOTAL);
@@ -484,10 +494,9 @@ public class GameController {
         int total = 0;
 
         for (ScoreType type : scores.keySet()) {
-            if (type == ScoreType.SUM || type == ScoreType.BONUS || type == ScoreType.TOTAL) {
+            if (isScoreTypeSumBonusTotal(type)) {
                 continue;
             }
-
             if (type.ordinal() < ScoreType.SUM.ordinal()) {
                 sum += scores.get(type);
             } else {
@@ -553,6 +562,84 @@ public class GameController {
 
         for (Die die : dice.getDice()) {
             die.setSelected(false);
+        }
+    }
+
+    @FXML
+    private void serialize(ActionEvent event) {
+        Map<String, Object> players = Map.of(
+                "Player1", player,
+                "Player2", playerTwo
+        );
+
+        try {
+            File file = FileUtils.saveFileDialog(grid.getScene().getWindow(), "ser");
+            if (file != null) {
+                SerializationUtils.writeObjects(players, file.getAbsolutePath());
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(GameController.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    @FXML
+    private void deserialize() {
+        File file = FileUtils.uploadFileDialog(grid.getScene().getWindow(), "ser");
+        if (file != null) {
+            try {
+                Map<String, Object> readObjects = SerializationUtils.readObjects(file.getAbsolutePath());
+
+                Player player1 = (Player) readObjects.get("Player1");
+                Player player2 = (Player) readObjects.get("Player2");
+
+                setupPlayers(player1, player2);
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void setupPlayers(Player retrievedObj1, Player retrievedObj2) {
+        player = retrievedObj1;
+        playerTwo = retrievedObj2;
+
+        updatePlayerNames(player, 1);
+        updatePlayerNames(playerTwo, 2);
+
+        updatePlayerCells(player, 1);
+        updatePlayerCells(playerTwo, 2);
+    }
+
+    private void updatePlayerNames(Player player, int columnNum) {
+        StackPane panePlayer = (StackPane) getNodeFromGridPane(grid, columnNum, 0);
+
+        Label labelName = (Label) panePlayer.getChildren().get(1);
+        labelName.setText(player.getName());
+    }
+
+    @FXML
+    public void generateDocumentation() {
+        DocumentationUtils.createDocumentation();
+    }
+
+    @FXML
+    private void saveXmlDom() {
+        try {
+            File file = FileUtils.saveFileDialog(grid.getScene().getWindow(), "ser");
+            if (file != null) {
+                XMLDomUtils.saveGameState(player, playerTwo, file.getAbsolutePath());
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(GameController.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    @FXML
+    private void loadXmlDom() {
+        File file = FileUtils.uploadFileDialog(grid.getScene().getWindow(), "ser");
+        if (file != null) {
+            List<Player> players = XMLDomUtils.loadGameState(file.getAbsolutePath());
+            setupPlayers(players.get(0), players.get(1));
         }
     }
 }

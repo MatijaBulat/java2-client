@@ -4,6 +4,7 @@ module hr.algebra.client {
     requires java.rmi;
     requires java.logging;
     requires java.naming;
+    requires java.desktop;
 
 
     opens hr.algebra.client to javafx.fxml;
